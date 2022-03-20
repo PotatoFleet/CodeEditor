@@ -38,7 +38,7 @@ export default class Editor {
     this.insertLine(this.totalLines);
   }
 
-  insertLine(idx) {
+  insertLine(idx = this.currentLine) {
     const gutterSpan = document.createElement("span");
     gutterSpan.classList.add("editor__main__gutter__span");
     gutterSpan.textContent = ++this.totalLines;
@@ -57,23 +57,52 @@ export default class Editor {
     codeLine.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        this.insertLine(this.currentLine);
+        let line = this.code.children[this.currentLine - 1];
+        let caretPosition = this.getCaretPosition();
+        let left = line.innerText.substring(0, caretPosition);
+        let right = line.innerText.substring(
+          caretPosition,
+          line.innerText.length
+        );
+        line.innerText = left;
+        this.insertLine();
+        this.code.children[this.currentLine - 1].innerText = right;
       } else if (e.key === "Backspace") {
-        if (codeLine.textContent === "" && this.totalLines !== 1) {
+        let line = this.code.children[this.currentLine - 1];
+        if (
+          line.innerText.substring(0, this.getCaretPosition()) === "" &&
+          this.currentLine !== 1
+        ) {
           e.preventDefault();
+          let lineText = line.innerText.substring(
+            this.getCaretPosition(),
+            line.innerText.length
+          );
           this.deleteLine();
+          this.code.children[this.currentLine - 1].append(lineText);
         }
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         if (this.currentLine === 1) return;
+        let caretPos = this.getCaretPosition();
         this.code.children[--this.currentLine - 1].focus();
         this.setCaretPos(
-          this.code.children[this.currentLine - 2].innerText.length
+          Math.min(
+            caretPos,
+            this.code.children[this.currentLine - 1].innerText.length
+          )
         );
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
         if (this.currentLine === this.totalLines) return;
+        let caretPos = this.getCaretPosition();
         this.code.children[++this.currentLine - 1].focus();
+        this.setCaretPos(
+          Math.min(
+            caretPos,
+            this.code.children[this.currentLine - 1].innerText.length
+          )
+        );
       }
     });
 
@@ -95,9 +124,10 @@ export default class Editor {
   setCaretPos(idx) {
     let range = document.createRange();
     let sel = window.getSelection();
+
     let node = this.code.children[this.currentLine - 1].childNodes[0];
 
-    if (node.length === 0) return;
+    if (!node || node.length === 0) return;
 
     range.setStart(node, idx);
     range.collapse(true);
@@ -108,5 +138,32 @@ export default class Editor {
 
   setCaretToEnd() {
     this.setCaretPos(this.code.children[this.currentLine - 1].innerText.length);
+  }
+
+  getCaretPosition() {
+    let caretPos = 0,
+      sel,
+      range;
+    let editableDiv = this.code.children[this.currentLine - 1];
+    if (window.getSelection) {
+      sel = window.getSelection();
+      if (sel.rangeCount) {
+        range = sel.getRangeAt(0);
+        if (range.commonAncestorContainer.parentNode == editableDiv) {
+          caretPos = range.endOffset;
+        }
+      }
+    } else if (document.selection && document.selection.createRange) {
+      range = document.selection.createRange();
+      if (range.parentElement() == editableDiv) {
+        let tempEl = document.createElement("span");
+        editableDiv.insertBefore(tempEl, editableDiv.firstChild);
+        let tempRange = range.duplicate();
+        tempRange.moveToElementText(tempEl);
+        tempRange.setEndPoint("EndToEnd", range);
+        caretPos = tempRange.text.length;
+      }
+    }
+    return caretPos;
   }
 }
