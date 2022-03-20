@@ -1,0 +1,31 @@
+.editor__main {
+  padding: 5px 0;
+  display: flex;
+  background: #222;
+  height: 100%;
+}
+
+.editor__main * {
+  font-family: Consolas;
+  font-size: 1.1rem;
+  color: white;
+}
+
+.editor__main__gutter {
+  display: flex;
+  flex-direction: column;
+  width: max-content;
+  padding: 0 15px;
+}
+
+.editor__main__gutter__span {
+  color: #444;
+}
+
+.editor__main__code {
+  width: 100%;
+}
+
+.editor__main__code__line:focus {
+  outline: none;
+}
