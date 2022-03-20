@@ -3,6 +3,7 @@
   display: flex;
   background: #222;
   height: 100%;
+  overflow: auto;
 }
 
 .editor__main * {
@@ -19,6 +20,7 @@
 }
 
 .editor__main__gutter__span {
+  user-select: none;
   color: #444;
 }
 

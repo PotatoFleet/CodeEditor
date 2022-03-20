@@ -1,3 +1,42 @@
+function fallbackCopyTextToClipboard(text) {
+  var textArea = document.createElement("textarea");
+  textArea.value = text;
+
+  // Avoid scrolling to bottom
+  textArea.style.top = "0";
+  textArea.style.left = "0";
+  textArea.style.position = "fixed";
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  try {
+    var successful = document.execCommand("copy");
+    var msg = successful ? "successful" : "unsuccessful";
+    console.log("Fallback: Copying text command was " + msg);
+  } catch (err) {
+    console.error("Fallback: Oops, unable to copy", err);
+  }
+
+  document.body.removeChild(textArea);
+}
+
+function copyTextToClipboard(text) {
+  if (!navigator.clipboard) {
+    fallbackCopyTextToClipboard(text);
+    return;
+  }
+  navigator.clipboard.writeText(text).then(
+    function () {
+      console.log("Async: Copying to clipboard was successful!");
+    },
+    function (err) {
+      console.error("Async: Could not copy text: ", err);
+    }
+  );
+}
+
 export default class Editor {
   constructor(root) {
     this.root = root;
@@ -20,6 +59,12 @@ export default class Editor {
 
     this.main.appendChild(this.gutter);
     this.main.appendChild(this.code);
+
+    this.main.addEventListener("click", () => {
+      this.currentLine = this.totalLines;
+      this.code.children[this.currentLine - 1].focus();
+      this.setCaretToEnd();
+    });
 
     this.root.appendChild(this.main);
 
@@ -44,12 +89,13 @@ export default class Editor {
     gutterSpan.textContent = ++this.totalLines;
     this.gutter.appendChild(gutterSpan);
 
-    const codeLine = document.createElement("div");
+    const codeLine = document.createElement("pre");
     codeLine.classList.add("editor__main__code__line");
     codeLine.contentEditable = true;
     codeLine.spellcheck = false;
 
-    codeLine.addEventListener("click", () => {
+    codeLine.addEventListener("click", (e) => {
+      e.stopPropagation();
       this.currentLine =
         Array.prototype.indexOf.call(this.code.children, codeLine) + 1;
     });
@@ -83,7 +129,10 @@ export default class Editor {
         }
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        if (this.currentLine === 1) return;
+        if (this.currentLine === 1) {
+          this.setCaretPos(0);
+          return;
+        }
         let caretPos = this.getCaretPosition();
         this.code.children[--this.currentLine - 1].focus();
         this.setCaretPos(
@@ -94,7 +143,10 @@ export default class Editor {
         );
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        if (this.currentLine === this.totalLines) return;
+        if (this.currentLine === this.totalLines) {
+          this.setCaretToEnd();
+          return;
+        }
         let caretPos = this.getCaretPosition();
         this.code.children[++this.currentLine - 1].focus();
         this.setCaretPos(
@@ -103,6 +155,13 @@ export default class Editor {
             this.code.children[this.currentLine - 1].innerText.length
           )
         );
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        this.type(" ");
+        this.type(" ");
+      } else if (e.key === "d" && e.ctrlKey) {
+        e.preventDefault();
+        this.code.children[this.currentLine - 1].innerText = "";
       }
     });
 
@@ -119,6 +178,15 @@ export default class Editor {
     this.code.children[this.currentLine - 1].focus();
     this.setCaretToEnd();
     this.totalLines--;
+  }
+
+  type(text) {
+    let line = this.code.children[this.currentLine - 1];
+    let caretPosition = this.getCaretPosition();
+    let left = line.innerText.substring(0, caretPosition);
+    let right = line.innerText.substring(caretPosition, line.innerText.length);
+    line.innerText = left + text + right;
+    this.setCaretPos(caretPosition + text.length);
   }
 
   setCaretPos(idx) {
